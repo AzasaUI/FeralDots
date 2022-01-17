@@ -1,7 +1,7 @@
 ## Interface: 90105
 ## Title: FeralDots
 ## Author: Azasa@ArgentDawn
-## Version: 1.0.1
+## Version: 1.0.2
 ## Notes: Display empowerment dots for Feral Druid bleed debuffs.
 ## SavedVariablesPerCharacter: FeralDots
 
