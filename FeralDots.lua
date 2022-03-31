@@ -1,3 +1,20 @@
+--
+-- API
+--   FeralDots_RakeHasTF(unit)
+--   FeralDots_RakeHasStealth(unit)
+--   FeralDots_RipHasTF(unit)
+--   FeralDots_RipHasBT(unit)
+--   FeralDots_ThrashHasTF(unit)
+--   FeralDots_ThrashHasMOC(unit)
+--     These functions return true if the related dot on the given target has this empowerment
+--
+-- WeakAura events
+--   FERAL_DOTS_RAKE
+--   FERAL_DOTS_RIP
+--   FERAL_DOTS_THRASH
+--     These events are triggered whenever the related dot is applied/removed
+--
+
 FeralDots = {}
 
 if select(2, UnitClass('player')) ~= 'DRUID' then
@@ -22,8 +39,8 @@ local FeralDots_StealthEnd = 0.0
 local FeralDots_ShadowMeldStart = 0.0
 local FeralDots_ShadowMeldEnd = 0.0
 
-local FeralDots_IncarnationStart = 0.0
-local FeralDots_IncarnationEnd = 0.0
+local FeralDots_BerserkStart = 0.0
+local FeralDots_BerserkEnd = 0.0
 
 local FeralDots_ClearcastStart = 0.0
 local FeralDots_ClearcastEnd = 0.0
@@ -31,6 +48,8 @@ local FeralDots_ClearcastEnd = 0.0
 local FeralDots_RakeFlags = {}
 local FeralDots_RipFlags = {}
 local FeralDots_ThrashFlags = {}
+
+local FeralDots_UsingMOC = false
 
 local FERAL_DOTS_TIGERS_FURY = 5217
 local FERAL_DOTS_BLOOD_TALONS = 145152
@@ -42,9 +61,11 @@ local FERAL_DOTS_THRASH = 106830
 local FERAL_DOTS_CLEARCAST = 135700
 local FERAL_DOTS_STEALTH = 5215
 local FERAL_DOTS_SHADOW_MELD = 58984
-local FERAL_DOTS_INCARNATION = 102543
+local FERAL_DOTS_BERSERK = 106951
 
-local FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE = 0.15
+local FERAL_DOTS_MOC_TALENT = 21646
+
+local FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD = 0.15
 
 local FERAL_DOTS_TIGERS_FURY_BIT = 1
 local FERAL_DOTS_BLOOD_TALONS_BIT = 2
@@ -56,10 +77,10 @@ local function FeralDots_GetCurrentFlags(ts)
 	local f1 = (FeralDots_BloodTalonsEnd < FeralDots_BloodTalonsStart or ts <= FeralDots_BloodTalonsEnd) and FERAL_DOTS_BLOOD_TALONS_BIT or 0
 	local f2 = (FeralDots_StealthEnd     < FeralDots_StealthStart     or ts <= FeralDots_StealthEnd    ) and FERAL_DOTS_STEALTH_BIT or 0
 	local f3 = (FeralDots_ShadowMeldEnd  < FeralDots_ShadowMeldStart  or ts <= FeralDots_ShadowMeldEnd ) and FERAL_DOTS_STEALTH_BIT or 0
-	local f4 = (FeralDots_IncarnationEnd < FeralDots_IncarnationStart or ts <= FeralDots_IncarnationEnd) and FERAL_DOTS_STEALTH_BIT or 0
+	local f4 = (FeralDots_BerserkEnd     < FeralDots_BerserkStart     or ts <= FeralDots_BerserkEnd    ) and FERAL_DOTS_STEALTH_BIT or 0
 	local f5 = (FeralDots_ClearcastEnd   < FeralDots_ClearcastStart   or ts <= FeralDots_ClearcastEnd  ) and FERAL_DOTS_CLEARCAST_BIT or 0
 
-	return f0 + f1 + f2 + f3 + f4 + f5
+	return bit.bor(f0, f1, f2, f3, f4, f5)
 end
 
 function FeralDots_RakeHasTF(target)
@@ -83,7 +104,7 @@ function FeralDots_ThrashHasTF(target)
 end
 
 function FeralDots_ThrashHasMOC(target)
-	return bit.band(FeralDots_ThrashFlags[target] or 0, FERAL_DOTS_CLEARCAST_BIT) ~= 0
+	return FeralDots_UsingMOC and bit.band(FeralDots_ThrashFlags[target] or 0, FERAL_DOTS_CLEARCAST_BIT) ~= 0
 end
 
 local function FeralDots_RaiseEvent(event)
@@ -111,9 +132,9 @@ local function FeralDots_CombatHandler(self, event, ...)
 			elseif spell == FERAL_DOTS_SHADOW_MELD then
 				FeralDots_ShadowMeldStart = ts
 				FeralDots_ShadowMeldEnd = 0.0
-			elseif spell == FERAL_DOTS_INCARNATION then
-				FeralDots_IncarnationStart = ts
-				FeralDots_IncarnationEnd = 0.0
+			elseif spell == FERAL_DOTS_BERSERK then
+				FeralDots_BerserkStart = ts
+				FeralDots_BerserkEnd = 0.0
 			elseif spell == FERAL_DOTS_RAKE_DOT then
 				FeralDots_RakeFlags[target] = FeralDots_GetCurrentFlags(ts)
 				FeralDots_RaiseEvent('FERAL_DOTS_RAKE')
@@ -126,17 +147,17 @@ local function FeralDots_CombatHandler(self, event, ...)
 			end
 		elseif ev == 'SPELL_AURA_REMOVED' then
 			if spell == FERAL_DOTS_TIGERS_FURY then
-				FeralDots_TigersFuryEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
+				FeralDots_TigersFuryEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_BLOOD_TALONS then
-				FeralDots_BloodTalonsEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
+				FeralDots_BloodTalonsEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_CLEARCAST then
-				FeralDots_ClearcastEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
+				FeralDots_ClearcastEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_STEALTH then
-				FeralDots_StealthEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
+				FeralDots_StealthEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_SHADOW_MELD then
-				FeralDots_ShadowMeldEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
-			elseif spell == FERAL_DOTS_INCARNATION then
-				FeralDots_IncarnationEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_FUDGE
+				FeralDots_ShadowMeldEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
+			elseif spell == FERAL_DOTS_BERSERK then
+				FeralDots_BerserkEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_RAKE_DOT then
 				FeralDots_RakeFlags[target] = nil
 				FeralDots_RaiseEvent('FERAL_DOTS_RAKE')
@@ -294,40 +315,93 @@ end
 hooksecurefunc('TargetFrame_UpdateAuras', FeralDots_TargetFrame_UpdateAuras)
 
 --
+-- general event tracking
+--
+
+local function FeralDots_CheckTalents()
+	local sg = GetActiveSpecGroup()
+	FeralDots_UsingMOC = not not select(4, GetTalentInfoByID(FERAL_DOTS_MOC_TALENT, sg))
+end
+
+local FeralDots_GlobalCombatID = 0
+
+local function FeralDots_BeginCombat()
+	FeralDots_GlobalCombatID = FeralDots_GlobalCombatID + 1
+end
+
+local function FeralDots_OutOfCombatCheck(currentCombatID)
+	if currentCombatID == FeralDots_GlobalCombatID then
+		local function ClearTable(t)
+			for i, v in pairs(t) do t[i] = nil end
+		end
+
+		ClearTable(FeralDots_RakeFlags)
+		ClearTable(FeralDots_RipFlags)
+		ClearTable(FeralDots_ThrashFlags)
+	end
+end
+
+local function FeralDots_EndCombat()
+	local currentCombatID = FeralDots_GlobalCombatID
+	C_Timer.After(40, function() FeralDots_OutOfCombatCheck(currentCombatID) end)
+end
+
+local function FeralDots_EventHandler(self, event, ...)
+	if event == 'PLAYER_TALENT_UPDATE' then
+		FeralDots_CheckTalents()
+	elseif event == 'PLAYER_REGEN_DISABLED' then
+		FeralDots_BeginCombat()
+	elseif event == 'PLAYER_REGEN_ENABLED' then
+		FeralDots_EndCombat()
+	end
+end
+
+local FeralDots_EventFrame = CreateFrame('Frame')
+
+FeralDots_EventFrame:RegisterEvent('PLAYER_TALENT_UPDATE')
+FeralDots_EventFrame:RegisterEvent('PLAYER_REGEN_DISABLED')
+FeralDots_EventFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
+FeralDots_EventFrame:SetScript('OnEvent', FeralDots_EventHandler)
+
+FeralDots_CheckTalents()
+
+--
 -- debug
 --
 
--- TODO: record last active per target time and expire out old data on periodic tick?
--- TODO: maybe kill off data after combat ends (+plus dot length timer)
+local function FeralDots_SlashCmd(msg, editbox)
+	if msg == 'debug' then
+		UIParentLoadAddOn('Blizzard_DebugTools')
+		--DisplayTableInspectorWindow(FeralDots_TargetIcons)
+		--DisplayTableInspectorWindow(FeralDots_RakeFlags)
+		DisplayTableInspectorWindow(FeralDots_RipFlags)
+		--DisplayTableInspectorWindow(FeralDots_ThrashFlags)
+		--DisplayTableInspectorWindow(FeralDots_Plates)
+	elseif msg == 'mem' then
+		local frame = CreateFrame('Frame', nil, UIParent)
 
-local function FeralDots_ShowMemoryUsage()
-	local frame = CreateFrame('Frame', nil, UIParent)
+		frame:SetSize(10, 10)
+		frame:SetPoint('LEFT', UIParent, 'LEFT', 0, 0)
 
-	frame:SetSize(10, 10)
-	frame:SetPoint('LEFT', UIParent, 'LEFT', 0, 0)
-
-	local text = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
-	text:SetPoint('TOPLEFT', 0, 0)
-	text:SetText('FeralDots: ?k')
+		local text = frame:CreateFontString(nil, 'ARTWORK', 'GameFontNormal')
+		text:SetPoint('TOPLEFT', 0, 0)
+		text:SetText('FeralDots: ?k')
 	
-	local time = 0
+		local time = 0
 
-	frame:SetScript('OnUpdate', function(self, elapsed)
-		time = time + elapsed
+		frame:SetScript('OnUpdate',
+				function(self, elapsed)
+					time = time + elapsed
 
-		if time >= 1 then
-			time = 0
-			UpdateAddOnMemoryUsage()
-			text:SetText('FeralDots: ' .. math.ceil(GetAddOnMemoryUsage('FeralDots')) .. 'k')
-		end
-	end)
+					if time >= 1 then
+						time = 0
+						UpdateAddOnMemoryUsage()
+						text:SetText('FeralDots: ' .. math.ceil(GetAddOnMemoryUsage('FeralDots')) .. 'k')
+					end
+				end
+			)
+	end
 end
 
---FeralDots_ShowMemoryUsage()
-
---UIParentLoadAddOn('Blizzard_DebugTools')
---DisplayTableInspectorWindow(FeralDots_TargetIcons)
---DisplayTableInspectorWindow(FeralDots_RakeFlags)
---DisplayTableInspectorWindow(FeralDots_RipFlags)
---DisplayTableInspectorWindow(FeralDots_ThrashFlags)
---DisplayTableInspectorWindow(FeralDots_Plates)
+SLASH_FERAL_DOTS1 = "/feraldots"
+SlashCmdList["FERAL_DOTS"] = FeralDots_SlashCmd
