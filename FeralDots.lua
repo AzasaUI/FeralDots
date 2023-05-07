@@ -39,11 +39,14 @@ local FeralDots_StealthEnd = 0.0
 local FeralDots_ShadowMeldStart = 0.0
 local FeralDots_ShadowMeldEnd = 0.0
 
-local FeralDots_BerserkStart = 0.0
-local FeralDots_BerserkEnd = 0.0
+--local FeralDots_BerserkStart = 0.0
+--local FeralDots_BerserkEnd = 0.0
 
 local FeralDots_ClearcastStart = 0.0
 local FeralDots_ClearcastEnd = 0.0
+
+local FeralDots_SuddenAmbushStart = 0.0
+local FeralDots_SuddenAmbushEnd = 0.0
 
 local FeralDots_RakeFlags = {}
 local FeralDots_RipFlags = {}
@@ -57,13 +60,15 @@ local FERAL_DOTS_RAKE = 1822
 local FERAL_DOTS_RAKE_DOT = 155722
 local FERAL_DOTS_RAKE_STUN = 163505
 local FERAL_DOTS_RIP = 1079
-local FERAL_DOTS_THRASH = 106830
+local FERAL_DOTS_THRASH = 405233 -- 106830
 local FERAL_DOTS_CLEARCAST = 135700
 local FERAL_DOTS_STEALTH = 5215
 local FERAL_DOTS_SHADOW_MELD = 58984
-local FERAL_DOTS_BERSERK = 106951
+--local FERAL_DOTS_BERSERK = 106951
 
-local FERAL_DOTS_MOC_TALENT = 21646
+local FERAL_DOTS_SUDDEN_AMBUSH = 391974
+
+local FERAL_DOTS_MOC_TALENT = 236068
 
 local FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD = 0.15
 
@@ -73,12 +78,13 @@ local FERAL_DOTS_STEALTH_BIT = 4
 local FERAL_DOTS_CLEARCAST_BIT = 8
 
 local function FeralDots_GetCurrentFlags(ts)
-	local f0 = (FeralDots_TigersFuryEnd  < FeralDots_TigersFuryStart  or ts <= FeralDots_TigersFuryEnd ) and FERAL_DOTS_TIGERS_FURY_BIT or 0
-	local f1 = (FeralDots_BloodTalonsEnd < FeralDots_BloodTalonsStart or ts <= FeralDots_BloodTalonsEnd) and FERAL_DOTS_BLOOD_TALONS_BIT or 0
-	local f2 = (FeralDots_StealthEnd     < FeralDots_StealthStart     or ts <= FeralDots_StealthEnd    ) and FERAL_DOTS_STEALTH_BIT or 0
-	local f3 = (FeralDots_ShadowMeldEnd  < FeralDots_ShadowMeldStart  or ts <= FeralDots_ShadowMeldEnd ) and FERAL_DOTS_STEALTH_BIT or 0
-	local f4 = (FeralDots_BerserkEnd     < FeralDots_BerserkStart     or ts <= FeralDots_BerserkEnd    ) and FERAL_DOTS_STEALTH_BIT or 0
-	local f5 = (FeralDots_ClearcastEnd   < FeralDots_ClearcastStart   or ts <= FeralDots_ClearcastEnd  ) and FERAL_DOTS_CLEARCAST_BIT or 0
+	local f0 = (FeralDots_TigersFuryEnd   < FeralDots_TigersFuryStart   or ts <= FeralDots_TigersFuryEnd  ) and FERAL_DOTS_TIGERS_FURY_BIT or 0
+	local f1 = (FeralDots_BloodTalonsEnd  < FeralDots_BloodTalonsStart  or ts <= FeralDots_BloodTalonsEnd ) and FERAL_DOTS_BLOOD_TALONS_BIT or 0
+	local f2 = (FeralDots_StealthEnd      < FeralDots_StealthStart      or ts <= FeralDots_StealthEnd     ) and FERAL_DOTS_STEALTH_BIT or 0
+	local f3 = (FeralDots_ShadowMeldEnd   < FeralDots_ShadowMeldStart   or ts <= FeralDots_ShadowMeldEnd  ) and FERAL_DOTS_STEALTH_BIT or 0
+	local f4 = (FeralDots_SuddenAmbushEnd < FeralDots_SuddenAmbushStart or ts <= FeralDots_SuddenAmbushEnd) and FERAL_DOTS_STEALTH_BIT or 0
+	local f5 = (FeralDots_ClearcastEnd    < FeralDots_ClearcastStart    or ts <= FeralDots_ClearcastEnd   ) and FERAL_DOTS_CLEARCAST_BIT or 0
+	-- local f6 = (FeralDots_BerserkEnd      < FeralDots_BerserkStart      or ts <= FeralDots_BerserkEnd     ) and FERAL_DOTS_STEALTH_BIT or 0
 
 	return bit.bor(f0, f1, f2, f3, f4, f5)
 end
@@ -132,9 +138,12 @@ local function FeralDots_CombatHandler(self, event, ...)
 			elseif spell == FERAL_DOTS_SHADOW_MELD then
 				FeralDots_ShadowMeldStart = ts
 				FeralDots_ShadowMeldEnd = 0.0
-			elseif spell == FERAL_DOTS_BERSERK then
-				FeralDots_BerserkStart = ts
-				FeralDots_BerserkEnd = 0.0
+			--elseif spell == FERAL_DOTS_BERSERK then
+			--	FeralDots_BerserkStart = ts
+			--	FeralDots_BerserkEnd = 0.0
+			elseif spell == FERAL_DOTS_SUDDEN_AMBUSH then
+				FeralDots_SuddenAmbushStart = ts
+				FeralDots_SuddenAmbushEnd = 0.0
 			elseif spell == FERAL_DOTS_RAKE_DOT then
 				FeralDots_RakeFlags[target] = FeralDots_GetCurrentFlags(ts)
 				FeralDots_RaiseEvent('FERAL_DOTS_RAKE')
@@ -156,8 +165,10 @@ local function FeralDots_CombatHandler(self, event, ...)
 				FeralDots_StealthEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_SHADOW_MELD then
 				FeralDots_ShadowMeldEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
-			elseif spell == FERAL_DOTS_BERSERK then
-				FeralDots_BerserkEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
+			--elseif spell == FERAL_DOTS_BERSERK then
+			--	FeralDots_BerserkEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
+			elseif spell == FERAL_DOTS_SUDDEN_AMBUSH then
+				FeralDots_SuddenAmbushEnd = ts + FERAL_DOTS_AURA_EXPIRE_TIMING_THRESHOLD
 			elseif spell == FERAL_DOTS_RAKE_DOT then
 				FeralDots_RakeFlags[target] = nil
 				FeralDots_RaiseEvent('FERAL_DOTS_RAKE')
@@ -170,7 +181,7 @@ local function FeralDots_CombatHandler(self, event, ...)
 			end
 		end
 
-		--print(ts, ev, spellName)
+		print(ts, ev, spellName, spell)
 	end
 end
 
@@ -185,12 +196,10 @@ FeralDots_CombatFrame:SetScript('OnEvent', FeralDots_CombatHandler)
 
 local FeralDots_Plates = {}
 local FeralDots_PlateIcons = {}
-local FeralDots_PlateAuras = {}
 
 local FeralDots_NamePlateFrame = CreateFrame('Frame')
 
-local function FeralDots_ApplySnapshotIcons(iconTable, auras, unitID, buff)
-	local spell = auras[buff:GetID()]
+local function FeralDots_ApplySnapshotIcons(iconTable, unitID, buff, spell)
 	local icons = iconTable[buff]
 
 	if spell == FERAL_DOTS_RAKE_DOT or spell == FERAL_DOTS_RIP or spell == FERAL_DOTS_THRASH then
@@ -250,38 +259,32 @@ local function FeralDots_ApplySnapshotIcons(iconTable, auras, unitID, buff)
 	end
 end
 
-local function FeralDots_NamePlate_UpdateIcons(plate, unit, filter)
-	local auras = FeralDots_PlateAuras[plate]
-	local unitID = UnitGUID(unit)
+local function FeralDots_NamePlate_UpdateBuffs(self, namePlateUnitToken, unitAuraUpdateInfo, auraSettings)
+	local unitID = UnitGUID(namePlateUnitToken)
 
-	for _, buff in pairs(plate.UnitFrame.BuffFrame.buffList) do
-		FeralDots_ApplySnapshotIcons(FeralDots_PlateIcons, auras, unitID, buff)
-	end
+	for buff in self.buffPool:EnumerateActive() do
+		FeralDots_ApplySnapshotIcons(FeralDots_PlateIcons, unitID, buff, buff.spellID)
+	end	
 end
 
-local function FeralDots_NamePlate_UpdateBuffs(plate, unit, filter)
-	local index = 1
-	local auras = {}
-
-	AuraUtil.ForEachAura(unit, filter, BUFF_MAX_DISPLAY, function(_, _, _, _, _, _, _, _, _, spell, _, _, _, _) auras[index] = spell; index = index + 1 end)
-
-	FeralDots_PlateAuras[plate] = auras
-
-	FeralDots_NamePlate_UpdateIcons(plate, unit, filter)
-end
-
-local function FeralDots_NamePlateHandler(self, event, unit, ...)
+local function FeralDots_NamePlateHandler(self, event, ...)
 	if event == 'NAME_PLATE_UNIT_ADDED' then
-		local plate = C_NamePlate.GetNamePlateForUnit(unit)
+		local namePlateUnitToken = ...
+		local plate = C_NamePlate.GetNamePlateForUnit(namePlateUnitToken)
 
 		if FeralDots_Plates[plate] == nil then
 			FeralDots_Plates[plate] = plate
 
 			local oldUpdateBuffs = plate.UnitFrame.BuffFrame.UpdateBuffs
 
-			plate.UnitFrame.BuffFrame.UpdateBuffs = function(self, unit, filter, ...) oldUpdateBuffs(self, unit, filter, ...) FeralDots_NamePlate_UpdateBuffs(plate, unit, filter) end
+			local function InterceptUpdateBuffs(self, namePlateUnitToken, unitAuraUpdateInfo, auraSettings, ...)
+				oldUpdateBuffs(self, namePlateUnitToken, unitAuraUpdateInfo, auraSettings, ...)
+				FeralDots_NamePlate_UpdateBuffs(self, namePlateUnitToken, unitAuraUpdateInfo, auraSettings)
+			end
 
-			NamePlateDriverFrame:OnUnitAuraUpdate(unit)
+			plate.UnitFrame.BuffFrame.UpdateBuffs = InterceptUpdateBuffs
+
+			NamePlateDriverFrame:OnUnitAuraUpdate(namePlateUnitToken)
 		end
 	end
 end
@@ -296,31 +299,29 @@ FeralDots_NamePlateFrame:SetScript('OnEvent', FeralDots_NamePlateHandler)
 local FeralDots_TargetIcons = {}
 
 local function FeralDots_TargetFrame_UpdateAuras(self)
-	local debuffs = TargetFrame.Debuff
+	local debuffs = TargetFrame.auraPools
 
 	if debuffs then
-		local index = 1
-		local auras = { }
-
-		AuraUtil.ForEachAura(self.unit, 'HARMFUL|INCLUDE_NAME_PLATE_ONLY', #debuffs, function(_, _, _, _, _, _, _, _, _, spell, _, _, _, _) auras[index] = spell; index = index + 1 end)
-
 		local unitID = UnitGUID('target')
 
-		for _, buff in pairs(debuffs) do
-			FeralDots_ApplySnapshotIcons(FeralDots_TargetIcons, auras, unitID, buff)
+		for buff in debuffs:EnumerateActive() do
+			local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(buff.unit, buff.auraInstanceID)
+
+			if aura then
+				FeralDots_ApplySnapshotIcons(FeralDots_TargetIcons, unitID, buff, aura.spellId)
+			end
 		end
 	end
 end
 
-hooksecurefunc('TargetFrame_UpdateAuras', FeralDots_TargetFrame_UpdateAuras)
+hooksecurefunc(TargetFrame, 'UpdateAuras', FeralDots_TargetFrame_UpdateAuras)
 
 --
 -- general event tracking
 --
 
 local function FeralDots_CheckTalents()
-	local sg = GetActiveSpecGroup()
-	FeralDots_UsingMOC = not not select(4, GetTalentInfoByID(FERAL_DOTS_MOC_TALENT, sg))
+	FeralDots_UsingMOC = IsPlayerSpell(FERAL_DOTS_MOC_TALENT)
 end
 
 local FeralDots_GlobalCombatID = 0
@@ -347,7 +348,7 @@ local function FeralDots_EndCombat()
 end
 
 local function FeralDots_EventHandler(self, event, ...)
-	if event == 'PLAYER_TALENT_UPDATE' then
+	if event == 'PLAYER_TALENT_UPDATE' or event == 'ACTIVE_TALENT_GROUP_CHANGED' or event == 'TRAIT_CONFIG_CREATED' or event == 'TRAIT_CONFIG_UPDATED' then
 		FeralDots_CheckTalents()
 	elseif event == 'PLAYER_REGEN_DISABLED' then
 		FeralDots_BeginCombat()
@@ -359,6 +360,9 @@ end
 local FeralDots_EventFrame = CreateFrame('Frame')
 
 FeralDots_EventFrame:RegisterEvent('PLAYER_TALENT_UPDATE')
+FeralDots_EventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
+FeralDots_EventFrame:RegisterEvent('TRAIT_CONFIG_CREATED')
+FeralDots_EventFrame:RegisterEvent('TRAIT_CONFIG_UPDATED')
 FeralDots_EventFrame:RegisterEvent('PLAYER_REGEN_DISABLED')
 FeralDots_EventFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
 FeralDots_EventFrame:SetScript('OnEvent', FeralDots_EventHandler)
