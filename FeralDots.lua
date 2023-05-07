@@ -181,7 +181,7 @@ local function FeralDots_CombatHandler(self, event, ...)
 			end
 		end
 
-		print(ts, ev, spellName, spell)
+		--print(ts, ev, spellName, spell)
 	end
 end
 
